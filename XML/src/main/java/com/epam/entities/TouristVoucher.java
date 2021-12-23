@@ -1,7 +1,7 @@
 package com.epam.entities;
 
-import com.epam.entities.associatveclasses.HotelCharacteristics;
-import com.epam.entities.associatveclasses.Type;
+import com.epam.entities.associatedclasses.HotelCharacteristics;
+import com.epam.entities.associatedclasses.Type;
 
 public class TouristVoucher {
 	private int id;

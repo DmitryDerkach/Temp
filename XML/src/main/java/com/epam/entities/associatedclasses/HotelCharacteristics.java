@@ -1,4 +1,4 @@
-package com.epam.entities.associatveclasses;
+package com.epam.entities.associatedclasses;
 
 public class HotelCharacteristics {
 	private int numOfStars;

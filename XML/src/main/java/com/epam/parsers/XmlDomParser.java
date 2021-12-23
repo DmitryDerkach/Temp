@@ -4,26 +4,29 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import com.epam.entities.FamilyVoucher;
+import com.epam.entities.TouristVoucher;
+import com.epam.entities.associatedclasses.HotelCharacteristics;
+import com.epam.entities.associatedclasses.MealType;
+import com.epam.entities.associatedclasses.MealsIncluded;
+import com.epam.entities.associatedclasses.RoomType;
+import com.epam.entities.associatedclasses.Type;
+import com.epam.exception.ParserErrorException;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import com.epam.entities.BusinessVoucher;
-import com.epam.entities.associatveclasses.HotelCharacteristics;
-import com.epam.entities.associatveclasses.MealType;
-import com.epam.entities.associatveclasses.MealsIncluded;
-import com.epam.entities.associatveclasses.RoomType;
-import com.epam.entities.associatveclasses.Type;
 
-public class XmlDomParser {
-	public static void main(String[] args) {
+public class XmlDomParser implements Parser{
+
+	@Override
+	public List<TouristVoucher> parse(String filePath) throws ParserErrorException {
 		/*Converting XML to DOM Object Model with Error Handling*/
-		Document domObject = buildDocument();
+		Document domObject = buildDocument(filePath);
 		
 		/*Creating list of objects from XML input*/
-		List<BusinessVoucher> listOfBusinessVouchers = new ArrayList();
-		List<FamilyVoucher> listOfFamilyVouchers = new ArrayList();
+		List<TouristVoucher> listOfVouchers = new ArrayList<>();
 		
 		/*Data processing*/
 		Node rootNode = domObject.getFirstChild();
@@ -36,18 +39,18 @@ public class XmlDomParser {
 			}
 			
 			if (childNode.getNodeName().equals("familyVoucher")) {
-				listOfFamilyVouchers.add(getInformationAboutFamilyVouchers(childNode));
+				listOfVouchers.add(getInformationAboutFamilyVouchers(childNode));
 			
 			}
 			
 			if (childNode.getNodeName().equals("businessVoucher")) {
-				listOfBusinessVouchers.add(getInformationAboutBusinessVouchers(childNode));
+				listOfVouchers.add(getInformationAboutBusinessVouchers(childNode));
 			}
 		}
-		System.out.println(listOfBusinessVouchers);
-		
-	}//main
-
+			
+		return listOfVouchers;
+	}	
+	
 	private static BusinessVoucher getInformationAboutBusinessVouchers(Node businessVoucherNode) {
 		/*BusinessVoucher object creation*/
 		BusinessVoucher businessVoucher = new BusinessVoucher();
@@ -97,7 +100,7 @@ public class XmlDomParser {
 			}
 			
 			if (childNodeName.equals("hotelCharacteristics")) {
-				businessVoucher.setHotelCharacteristics(getHotelCharacteristics(childNode, businessVoucher));
+				businessVoucher.setHotelCharacteristics(getHotelCharacteristics(childNode));
 				continue;
 			}
 			
@@ -116,7 +119,7 @@ public class XmlDomParser {
 		
 	}//getInformationAboutBusinessVouchers
 
-	private static HotelCharacteristics getHotelCharacteristics(Node hotelCharacteristicsNode, BusinessVoucher businessVoucher) {
+	private static HotelCharacteristics getHotelCharacteristics(Node hotelCharacteristicsNode) {
 		/*HotelCharacteristics class creation*/
 		HotelCharacteristics hotelCharacteristics = new HotelCharacteristics();
 		
@@ -133,8 +136,8 @@ public class XmlDomParser {
 				continue;
 			}
 			
-			if (childNodeName.equals("numOfStars")) {
-				hotelCharacteristics.setNumOfStars(Integer.parseInt(hotelCharacteristicsChildren.item(i).getTextContent()));
+			if (childNodeName.equals("numberOfStars")) {
+				hotelCharacteristics.setNumOfStars(Integer.parseInt(childNode.getTextContent()));
 				continue;
 			}	
 			
@@ -174,8 +177,7 @@ public class XmlDomParser {
 			String trueAttribute = attributes.item(0).getTextContent();
 			
 			if(trueAttribute.equals("true")) {
-				boolean avaiable = Boolean.parseBoolean(trueAttribute);
-				mealsIncluded.setAvailable(avaiable);
+				mealsIncluded.setAvailable(true);
 				NodeList mealTypeNodesChildren = hotelCharacteristicsChild.getChildNodes();
 				for (int i = 0; i < mealTypeNodesChildren.getLength(); i++) {
 					
@@ -208,18 +210,75 @@ public class XmlDomParser {
 		
 	}//getInformationAboutMeals
 
-	private static FamilyVoucher getInformationAboutFamilyVouchers(Node familyVoucher) {
-		NodeList familyVoucherChildren =  familyVoucher.getChildNodes();
+	private static FamilyVoucher getInformationAboutFamilyVouchers(Node familyVoucherNode) {
+		
+		/*FamilyVoucher object creation*/
+		FamilyVoucher familyVoucher = new FamilyVoucher();
+		
+		/*Processing attributes*/
+		NamedNodeMap attributes = familyVoucherNode.getAttributes();
+		String idAttribute = attributes.item(0).getTextContent();
+		familyVoucher.setId(Integer.parseInt(idAttribute));
+		
+		/*Processing familyVoucherNode children*/
+		NodeList familyVoucherChildren =  familyVoucherNode.getChildNodes();
 		for (int i = 0; i < familyVoucherChildren.getLength(); i++) {
-			if (familyVoucherChildren.item(i).getNodeType() != Node.ELEMENT_NODE) {
+			
+			/*Variables for simplifying understanding*/
+			Node childNode = familyVoucherChildren.item(i);
+			String childNodeContent = familyVoucherChildren.item(i).getTextContent();
+			String childNodeName = familyVoucherChildren.item(i).getNodeName();
+			
+			if (childNode.getNodeType() != Node.ELEMENT_NODE) {
 				continue;
 			}
-		}
-		return new FamilyVoucher();
-	}
-
-	private static Document buildDocument() {
-		File file = new File("src/main/resources/vouchers.xml");
+			
+			if (childNodeName.equals("type")) {
+				if (childNode.getTextContent().equalsIgnoreCase("BUSINESS")) {
+					familyVoucher.setType(Type.BUSINESS);
+					continue;
+				}
+				if (childNode.getTextContent().equalsIgnoreCase("WEEKEND")) {
+					familyVoucher.setType(Type.WEEKEND);
+				}
+			}
+			
+			if (childNodeName.equals("country")) {
+				familyVoucher.setCountry(childNodeContent);
+				continue;
+			}
+			
+			if (childNodeName.equals("transport")) {
+				familyVoucher.setTransport(childNodeContent);
+				continue;
+			}
+			
+			if (childNodeName.equals("numberOfDays")) {
+				familyVoucher.setNumberOfDays(Integer.parseInt(childNodeContent));
+				continue;
+			}
+			
+			if (childNodeName.equals("hotelCharacteristics")) {
+				familyVoucher.setHotelCharacteristics(getHotelCharacteristics(childNode));
+				continue;
+			}
+			
+			if (childNodeName.equals("cost")) {
+				familyVoucher.setCost(Integer.parseInt(childNodeContent));
+				continue;
+			}	
+			
+			if (childNodeName.equals("numOfFamilyMembers")) {
+				familyVoucher.setNumOfFamilyMembers((Integer.parseInt(childNodeContent)));
+				continue;
+			}
+		}//for
+		return familyVoucher;
+		
+	}//getInformationAboutFamilyVouchers
+	
+	private static Document buildDocument(String filePath) {
+		File file = new File(filePath);
 		DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
 		Document document = null;
 		try {
@@ -230,5 +289,6 @@ public class XmlDomParser {
 			System.exit(0);
 		}
 		return document; 
-	}	
+	}
+	
 }
